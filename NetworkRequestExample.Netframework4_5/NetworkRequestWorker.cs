@@ -119,6 +119,9 @@ namespace NetworkRequestExample.Netframework4_5
                 using (HttpClient httpClient = new HttpClient())
                 {
                     httpClient.BaseAddress = new Uri(url);
+#if Debug
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+#endif
                     HeaderParametersHandler(httpClient, headerParameters);
                     HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, string.Empty);
                     if (body != null)
@@ -171,11 +174,11 @@ namespace NetworkRequestExample.Netframework4_5
         }
 
         /// <summary>
-        /// 取得请求相应结果，返回string
+        /// 取得请求响应结果，返回string
         /// </summary>
         /// <param name="httpResponseMessage"></param>
         /// <returns></returns>
-        public static string GetHttpResponseMessageAsString(this HttpResponseMessage httpResponseMessage)
+        public static string GetResultAsString(this HttpResponseMessage httpResponseMessage)
         {
             if (httpResponseMessage == null) throw new ArgumentNullException(nameof(httpResponseMessage));
 
@@ -183,15 +186,15 @@ namespace NetworkRequestExample.Netframework4_5
         }
 
         /// <summary>
-        /// 取得请求相应结果，返回JObject
+        /// 取得请求响应结果，返回JObject
         /// </summary>
         /// <param name="httpResponseMessage"></param>
         /// <returns></returns>
-        public static JObject GetHttpResponseMessageAsJObject(this HttpResponseMessage httpResponseMessage)
+        public static JObject GetResultAsJObject(this HttpResponseMessage httpResponseMessage)
         {
             try
             {
-                return JObject.Parse(GetHttpResponseMessageAsString(httpResponseMessage));
+                return JObject.Parse(GetResultAsString(httpResponseMessage));
             }
             catch (JsonReaderException ex)
             {
@@ -201,14 +204,14 @@ namespace NetworkRequestExample.Netframework4_5
         }
 
         /// <summary>
-        /// 取得请求相应结果（泛型）
+        /// 取得请求响应结果（泛型）
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="httpResponseMessage"></param>
         /// <returns></returns>
-        public static T GetHttpResponseMessageAsGeneric<T>(this HttpResponseMessage httpResponseMessage)
+        public static T GetResultAsGeneric<T>(this HttpResponseMessage httpResponseMessage)
         {
-            return JsonConvert.DeserializeObject<T>(GetHttpResponseMessageAsString(httpResponseMessage));
+            return JsonConvert.DeserializeObject<T>(GetResultAsString(httpResponseMessage));
         }
 
         /// <summary>

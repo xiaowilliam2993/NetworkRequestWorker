@@ -21,7 +21,7 @@ namespace NetworkRequestExample.Netframework4_5
 
                 IDictionary<string, string> getRequestHeaderParameters = new Dictionary<string, string>();
                 getRequestHeaderParameters.Add("my-sample-header", "Lorem ipsum dolor sit amet");
-                JObject getResult = NetworkRequestWorker.Get(url).GetHttpResponseMessageAsJObject();
+                JObject getResult = NetworkRequestWorker.Get(url).GetResultAsJObject();
                 Console.WriteLine($"response:\n{getResult.ToString(Formatting.Indented)}");
             }
             catch (Exception ex)
@@ -45,7 +45,7 @@ namespace NetworkRequestExample.Netframework4_5
                     {
                         parameter = new { }
                     }
-                }, postRequestHeaderParameters).Result.GetHttpResponseMessageAsString();
+                }, postRequestHeaderParameters).Result.GetResultAsString();
                 Console.WriteLine($"response:\n{postResult}");
             }
             catch (Exception ex)
