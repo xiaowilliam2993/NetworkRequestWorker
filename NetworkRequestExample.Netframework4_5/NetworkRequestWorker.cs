@@ -12,7 +12,7 @@ namespace NetworkRequestExample.Netframework4_5
     /// <summary>
     /// 网络请求工具类，基于.Net Framework 4.5框架，为网络请求提供便捷方法
     ///     目前只提供GET、POST两种最常用的请求方式，返回值为HttpResponseMessage，根据该对象可以处理各种业务方面的事情
-    ///     GetHttpResponseMessageAs...，提供了一些快速将HttpResponseMessage结果转换为目标对象的入口
+    ///     GetResultAs...，提供了一些快速将HttpResponseMessage结果转换为目标对象的入口
     /// </summary>
     public static class NetworkRequestWorker
     {
