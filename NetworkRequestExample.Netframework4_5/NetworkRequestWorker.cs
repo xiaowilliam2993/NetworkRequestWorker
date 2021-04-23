@@ -1,8 +1,9 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,116 @@ namespace NetworkRequestExample.Netframework4_5
         public readonly static ILogger _Logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
+        /// 发送请求，请求方式为动态参数
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="body"></param>
+        /// <param name="httpMethod"></param>
+        /// <param name="headerParameters"></param>
+        /// <returns></returns>
+        private static HttpResponseMessage Send(string url, dynamic body, HttpMethod httpMethod, IDictionary<string, string> headerParameters = null)
+        {
+            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
+            if (httpMethod == null) throw new ArgumentNullException(nameof(httpMethod));
+
+            string serial = $"{Guid.NewGuid():N}";
+            Stopwatch stopwatch = new Stopwatch();
+            try
+            {
+                stopwatch.Start();
+                _Logger.Info($"{serial} send request {url}");
+
+                using (HttpClient httpClient = new HttpClient())
+                {
+#if Debug
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+#endif
+                    HeaderParametersHandler(httpClient, headerParameters);
+                    if (httpMethod == HttpMethod.Get)
+                    {
+                        return httpClient.GetAsync(url).Result;
+                    }
+                    else
+                    {
+                        httpClient.BaseAddress = new Uri(url);
+                        HttpRequestMessage httpRequestMessage = new HttpRequestMessage(httpMethod, string.Empty);
+                        if (body != null)
+                        {
+                            httpRequestMessage.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                        }
+                        return httpClient.SendAsync(httpRequestMessage).Result;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, body, httpMethod, headerParameters })}");
+                throw ex;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _Logger.Info($"{serial} get response, time consuming {stopwatch.Elapsed.TotalSeconds}(s)");
+            }
+        }
+
+        /// <summary>
+        /// 发送（异步）请求，请求方式为动态参数
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="body"></param>
+        /// <param name="httpMethod"></param>
+        /// <param name="headerParameters"></param>
+        /// <param name="isNeedCompression">标记是否要求压缩上传请求Body</param>
+        /// <returns></returns>
+        private static async Task<HttpResponseMessage> SendAsync(string url, dynamic body, HttpMethod httpMethod, IDictionary<string, string> headerParameters = null, bool isNeedCompression = false)
+        {
+            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
+            if (httpMethod == null) throw new ArgumentNullException(nameof(httpMethod));
+
+            string serial = $"{Guid.NewGuid():N}";
+            Stopwatch stopwatch = new Stopwatch();
+            try
+            {
+                stopwatch.Start();
+                _Logger.Info($"{serial} send request {url}");
+
+                using (HttpClient httpClient = new HttpClient())
+                {
+#if Debug
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+#endif
+                    HeaderParametersHandler(httpClient, headerParameters);
+                    if (httpMethod == HttpMethod.Get)
+                    {
+                        return httpClient.GetAsync(url).Result;
+                    }
+                    else
+                    {
+                        httpClient.BaseAddress = new Uri(url);
+                        HttpRequestMessage httpRequestMessage = new HttpRequestMessage(httpMethod, string.Empty);
+                        if (body != null)
+                        {
+                            HttpContent httpContent = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                            httpRequestMessage.Content = isNeedCompression ? new CompressedContent(httpContent, CompressionMethod.GZip) : httpContent;
+                        }
+                        return await httpClient.SendAsync(httpRequestMessage);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, body, httpMethod, headerParameters })}");
+                throw ex;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _Logger.Info($"{serial} get response, time consuming {stopwatch.Elapsed.TotalSeconds}(s)");
+            }
+        }
+
+        /// <summary>
         /// 处理GET请求
         /// </summary>
         /// <param name="url"></param>
@@ -26,21 +137,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <returns></returns>
         public static HttpResponseMessage Get(string url, IDictionary<string, string> headerParameters = null)
         {
-            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
-
-            try
-            {
-                using (HttpClient httpClient = new HttpClient())
-                {
-                    HeaderParametersHandler(httpClient, headerParameters);
-                    return httpClient.GetAsync(url).Result;
-                }
-            }
-            catch(Exception ex)
-            {
-                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, headerParameters })}");
-                throw ex;
-            }
+            return Send(url, null, HttpMethod.Get, headerParameters);
         }
 
         /// <summary>
@@ -51,21 +148,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <returns></returns>
         public static async Task<HttpResponseMessage> GetAsync(string url, IDictionary<string, string> headerParameters = null)
         {
-            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
-
-            try
-            {
-                using (HttpClient httpClient = new HttpClient())
-                {
-                    HeaderParametersHandler(httpClient, headerParameters);
-                    return await httpClient.GetAsync(url);
-                }
-            }
-            catch (Exception ex)
-            {
-                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, headerParameters })}");
-                throw ex;
-            }
+            return await SendAsync(url, null, HttpMethod.Get, headerParameters);
         }
 
         /// <summary>
@@ -77,30 +160,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <returns></returns>
         public static HttpResponseMessage Post(string url, dynamic body, IDictionary<string, string> headerParameters = null)
         {
-            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
-
-            try
-            {
-                using (HttpClient httpClient = new HttpClient())
-                {
-                    httpClient.BaseAddress = new Uri(url);
-#if Debug
-                    httpClient.Timeout = TimeSpan.FromSeconds(5);
-#endif
-                    HeaderParametersHandler(httpClient, headerParameters);
-                    HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, string.Empty);
-                    if (body != null)
-                    {
-                        httpRequestMessage.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                    }
-                    return httpClient.SendAsync(httpRequestMessage).Result;
-                }
-            }
-            catch (Exception ex)
-            {
-                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, headerParameters })}");
-                throw ex;
-            }
+            return Send(url, body, HttpMethod.Post, headerParameters);
         }
 
         /// <summary>
@@ -112,30 +172,55 @@ namespace NetworkRequestExample.Netframework4_5
         /// <returns></returns>
         public static async Task<HttpResponseMessage> PostAsync(string url, dynamic body, IDictionary<string, string> headerParameters = null)
         {
-            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
+            return await SendAsync(url, body, HttpMethod.Post, headerParameters);
+        }
 
-            try
-            {
-                using (HttpClient httpClient = new HttpClient())
-                {
-                    httpClient.BaseAddress = new Uri(url);
-#if Debug
-                    httpClient.Timeout = TimeSpan.FromSeconds(5);
-#endif
-                    HeaderParametersHandler(httpClient, headerParameters);
-                    HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, string.Empty);
-                    if (body != null)
-                    {
-                        httpRequestMessage.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                    }
-                    return await httpClient.SendAsync(httpRequestMessage);
-                }
-            }
-            catch (Exception ex)
-            {
-                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, headerParameters })}");
-                throw ex;
-            }
+        /// <summary>
+        /// 处理PUT请求
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="body"></param>
+        /// <param name="headerParameters"></param>
+        /// <returns></returns>
+        public static HttpResponseMessage Put(string url, dynamic body, IDictionary<string, string> headerParameters = null)
+        {
+            return Send(url, body, HttpMethod.Put, headerParameters);
+        }
+
+        /// <summary>
+        /// 处理PUT请求（异步）
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="body"></param>
+        /// <param name="headerParameters"></param>
+        /// <returns></returns>
+        public static async Task<HttpResponseMessage> PutAsync(string url, dynamic body, IDictionary<string, string> headerParameters = null)
+        {
+            return await SendAsync(url, body, HttpMethod.Put, headerParameters);
+        }
+
+        /// <summary>
+        /// 处理DELETE请求
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="body"></param>
+        /// <param name="headerParameters"></param>
+        /// <returns></returns>
+        public static HttpResponseMessage Delete(string url, dynamic body, IDictionary<string, string> headerParameters = null)
+        {
+            return Send(url, body, HttpMethod.Delete, headerParameters);
+        }
+
+        /// <summary>
+        /// 处理DELETE请求（异步）
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="body"></param>
+        /// <param name="headerParameters"></param>
+        /// <returns></returns>
+        public static async Task<HttpResponseMessage> DeleteAsync(string url, dynamic body, IDictionary<string, string> headerParameters = null)
+        {
+            return await SendAsync(url, body, HttpMethod.Delete, headerParameters);
         }
 
         /// <summary>
@@ -149,28 +234,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <returns></returns>
         public static async Task<HttpResponseMessage> PostByCompressAsync(string url, dynamic body, IDictionary<string, string> headerParameters = null)
         {
-            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
-
-            try
-            {
-                using (HttpClient httpClient = new HttpClient())
-                {
-                    httpClient.BaseAddress = new Uri(url);
-                    HeaderParametersHandler(httpClient, headerParameters);
-                    HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, string.Empty);
-                    if (body != null)
-                    {
-                        HttpContent httpContent = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                        httpRequestMessage.Content = new CompressedContent(httpContent, CompressionMethod.GZip);
-                    }
-                    return await httpClient.SendAsync(httpRequestMessage);
-                }
-            }
-            catch (Exception ex)
-            {
-                _Logger.Error(ex, $"params: {JsonConvert.SerializeObject(new { url, headerParameters })}");
-                throw ex;
-            }
+            return await SendAsync(url, body, HttpMethod.Post, headerParameters, true);
         }
 
         /// <summary>
@@ -209,7 +273,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <typeparam name="T"></typeparam>
         /// <param name="httpResponseMessage"></param>
         /// <returns></returns>
-        public static T GetResultAsGeneric<T>(this HttpResponseMessage httpResponseMessage)
+        public static T GetResultAsGeneric<T>(this HttpResponseMessage httpResponseMessage) where T : class
         {
             return JsonConvert.DeserializeObject<T>(GetResultAsString(httpResponseMessage));
         }
