@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 
 namespace NetworkRequestExample.Netframework4_5
 {
@@ -17,44 +17,76 @@ namespace NetworkRequestExample.Netframework4_5
             try
             {
                 url = "https://postman-echo.com/headers";
-                Console.WriteLine($"Send get request, url={url}");
+                ConsoleWriteHandler($"Send get request, url={url}", ConsoleColor.Blue);
 
                 IDictionary<string, string> getRequestHeaderParameters = new Dictionary<string, string>();
                 getRequestHeaderParameters.Add("my-sample-header", "Lorem ipsum dolor sit amet");
-                JObject getResult = NetworkRequestWorker.Get(url).GetResultAsJObject();
-                Console.WriteLine($"response:\n{getResult.ToString(Formatting.Indented)}");
+                HttpResponseMessage responseMessage = NetworkRequestWorker.Get(url);
+                ConsoleWriteHandler($@"Response message: {JsonConvert.SerializeObject(new
+                {
+                    responseMessage.StatusCode,
+                    responseMessage.IsSuccessStatusCode,
+                    responseMessage.Version
+                })}", responseMessage.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.DarkYellow);
+                ConsoleWriteHandler($"Result:\n{responseMessage.GetResultAsJObject().ToString(Formatting.Indented)}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{ex.Message}\n{ex.StackTrace}");
+                ConsoleWriteHandler($"{ex.Message}\n{ex.StackTrace}", ConsoleColor.Red);
             }
 
             try
             {
                 url = "http://172.16.1.43:8022/restful";
-                Console.WriteLine($"Send post request, url={url}");
+                ConsoleWriteHandler($"Send post request, url={url}", ConsoleColor.Blue);
 
                 IDictionary<string, string> postRequestHeaderParameters = new Dictionary<string, string>();
                 postRequestHeaderParameters.Add("digi-protocol", "raw");
                 postRequestHeaderParameters.Add("digi-type", "sync");
                 postRequestHeaderParameters.Add("digi-host", "{\"ver\":\"5.7\",\"prod\":\"DOP\",\"timezone\":\" + 8\",\"ip\":\"10.20.9.19\",\"id\":\"\",\"lang\":\"zh_CN\",\"acct\":\"dcms\",\"timestamp\":\"2018071990007275\"}");
                 postRequestHeaderParameters.Add("digi-service", "{\"prod\":\"E10\",\"ip\":\"127.0.0.1\",\"name\":\"e10.getIssueTreeApis\",\"id\":\"E0_6.0_NJ\"}");
-                string postResult = NetworkRequestWorker.PostAsync(url, new
+                HttpResponseMessage responseMessage = NetworkRequestWorker.PostAsync(url, new
                 {
                     std_data = new
                     {
                         parameter = new { }
                     }
-                }, postRequestHeaderParameters).Result.GetResultAsString();
-                Console.WriteLine($"response:\n{postResult}");
+                }, postRequestHeaderParameters).Result;
+                ConsoleWriteHandler($@"Response message: {JsonConvert.SerializeObject(new
+                {
+                    responseMessage.StatusCode,
+                    responseMessage.IsSuccessStatusCode,
+                    responseMessage.Version
+                })}", responseMessage.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.DarkYellow);
+                ConsoleWriteHandler($"Result:\n{responseMessage.GetResultAsString()}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{ex.Message}\n{ex.StackTrace}");
+                ConsoleWriteHandler($"{ex.Message}\n{ex.StackTrace}", ConsoleColor.Red);
             }
 
-            Console.WriteLine("Send out, press any key to exit...");
+            ConsoleWriteHandler("Send out, press any key to exit...", ConsoleColor.Magenta);
             Console.ReadLine();
+        }
+
+        static void ConsoleWriteHandler(string content)
+        {
+            ConsoleWriteHandler(content, ConsoleColor.White);
+        }
+
+        static void ConsoleWriteHandler(string content, ConsoleColor consoleColor, bool isNewLine = true)
+        {
+            ConsoleColor currentForeColor = Console.ForegroundColor;
+            Console.ForegroundColor = consoleColor;
+            if (isNewLine)
+            {
+                Console.WriteLine(content);
+            }
+            else
+            {
+                Console.Write(content);
+            }
+            Console.ForegroundColor = currentForeColor;
         }
     }
 }

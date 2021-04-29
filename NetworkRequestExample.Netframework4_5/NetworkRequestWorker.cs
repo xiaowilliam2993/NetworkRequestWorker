@@ -12,12 +12,12 @@ namespace NetworkRequestExample.Netframework4_5
 {
     /// <summary>
     /// 网络请求工具类，基于.Net Framework 4.5框架，为网络请求提供便捷方法
-    ///     目前只提供GET、POST两种最常用的请求方式，返回值为HttpResponseMessage，根据该对象可以处理各种业务方面的事情
+    ///     提供GET、POST、PUT、DELET等几种常用的请求方式，或者调Send方法自行组织参数，返回值为HttpResponseMessage，根据该对象可以处理各种业务方面的事情
     ///     GetResultAs...，提供了一些快速将HttpResponseMessage结果转换为目标对象的入口
     /// </summary>
     public static class NetworkRequestWorker
     {
-        public readonly static ILogger _Logger = LogManager.GetCurrentClassLogger();
+        private readonly static ILogger _Logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
         /// 发送请求，请求方式为动态参数
@@ -27,7 +27,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <param name="httpMethod"></param>
         /// <param name="headerParameters"></param>
         /// <returns></returns>
-        private static HttpResponseMessage Send(string url, dynamic body, HttpMethod httpMethod, IDictionary<string, string> headerParameters = null)
+        public static HttpResponseMessage Send(string url, dynamic body, HttpMethod httpMethod, IDictionary<string, string> headerParameters = null)
         {
             if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
             if (httpMethod == null) throw new ArgumentNullException(nameof(httpMethod));
@@ -45,20 +45,13 @@ namespace NetworkRequestExample.Netframework4_5
                     httpClient.Timeout = TimeSpan.FromSeconds(5);
 #endif
                     HeaderParametersHandler(httpClient, headerParameters);
-                    if (httpMethod == HttpMethod.Get)
+                    httpClient.BaseAddress = new Uri(url);
+                    HttpRequestMessage httpRequestMessage = new HttpRequestMessage(httpMethod, string.Empty);
+                    if (httpMethod != HttpMethod.Get && body != null)
                     {
-                        return httpClient.GetAsync(url).Result;
+                        httpRequestMessage.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
                     }
-                    else
-                    {
-                        httpClient.BaseAddress = new Uri(url);
-                        HttpRequestMessage httpRequestMessage = new HttpRequestMessage(httpMethod, string.Empty);
-                        if (body != null)
-                        {
-                            httpRequestMessage.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                        }
-                        return httpClient.SendAsync(httpRequestMessage).Result;
-                    }
+                    return httpClient.SendAsync(httpRequestMessage).Result;
                 }
             }
             catch (Exception ex)
@@ -82,7 +75,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <param name="headerParameters"></param>
         /// <param name="isNeedCompression">标记是否要求压缩上传请求Body</param>
         /// <returns></returns>
-        private static async Task<HttpResponseMessage> SendAsync(string url, dynamic body, HttpMethod httpMethod, IDictionary<string, string> headerParameters = null, bool isNeedCompression = false)
+        public static async Task<HttpResponseMessage> SendAsync(string url, dynamic body, HttpMethod httpMethod, IDictionary<string, string> headerParameters = null, bool isNeedCompression = false)
         {
             if (string.IsNullOrWhiteSpace(url)) throw new ArgumentNullException(nameof(url));
             if (httpMethod == null) throw new ArgumentNullException(nameof(httpMethod));
@@ -100,21 +93,14 @@ namespace NetworkRequestExample.Netframework4_5
                     httpClient.Timeout = TimeSpan.FromSeconds(5);
 #endif
                     HeaderParametersHandler(httpClient, headerParameters);
-                    if (httpMethod == HttpMethod.Get)
+                    httpClient.BaseAddress = new Uri(url);
+                    HttpRequestMessage httpRequestMessage = new HttpRequestMessage(httpMethod, string.Empty);
+                    if (httpMethod != HttpMethod.Get && body != null)
                     {
-                        return httpClient.GetAsync(url).Result;
+                        HttpContent httpContent = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+                        httpRequestMessage.Content = isNeedCompression ? new CompressedContent(httpContent, CompressionMethod.GZip) : httpContent;
                     }
-                    else
-                    {
-                        httpClient.BaseAddress = new Uri(url);
-                        HttpRequestMessage httpRequestMessage = new HttpRequestMessage(httpMethod, string.Empty);
-                        if (body != null)
-                        {
-                            HttpContent httpContent = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
-                            httpRequestMessage.Content = isNeedCompression ? new CompressedContent(httpContent, CompressionMethod.GZip) : httpContent;
-                        }
-                        return await httpClient.SendAsync(httpRequestMessage);
-                    }
+                    return await httpClient.SendAsync(httpRequestMessage);
                 }
             }
             catch (Exception ex)
