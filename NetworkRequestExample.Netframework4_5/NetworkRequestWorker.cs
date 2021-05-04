@@ -271,7 +271,7 @@ namespace NetworkRequestExample.Netframework4_5
         /// <param name="headerParameters"></param>
         private static void HeaderParametersHandler(HttpClient httpClient, IDictionary<string, string> headerParameters)
         {
-            if (httpClient == null) throw new ArgumentNullException(nameof(headerParameters));
+            if (httpClient == null) throw new ArgumentNullException(nameof(httpClient));
 
             if (headerParameters != null && headerParameters.Count > 0)
             {
